@@ -1,11 +1,12 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React, {useState} from 'react';
-import {auth} from '../../firebase';
+import React, {useState, useEffect} from 'react';
+import {auth, googleAuthProvider} from '../../firebase';
 import {toast} from 'react-toastify';
 import {Button} from 'antd';
-import {MailOutlined} from '@ant-design/icons';
-import {useDispatch} from 'react-redux';
+import {MailOutlined, GoogleOutlined} from '@ant-design/icons';
+import {useDispatch, useSelector} from 'react-redux';
+import {Link} from 'react-router-dom';
 
 const Login = ({history}) => {
   const [email, setEmail] = useState('');
@@ -13,6 +14,11 @@ const Login = ({history}) => {
   const [loading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
+  const {user} = useSelector((state)=>({...state}));
+
+  useEffect(()=>{
+    if (user && user.token) history.push('/');
+  }, [user]);
 
   const handleSubmit = async (e) =>{
     e.preventDefault();
@@ -37,6 +43,25 @@ const Login = ({history}) => {
       setLoading(false);
     }
   };
+  const googleButton = async () =>{
+    auth.signInWithPopup(googleAuthProvider)
+        .then(async (result) => {
+          const {user} = result;
+          const idTokenResult = await user.getIdTokenResult();
+          dispatch({
+            type: 'LOGGED_IN_USER',
+            payload: {
+              email: user.email,
+              token: idTokenResult,
+            },
+          });
+          history.push('/');
+        })
+        .catch((err) => {
+          console.log(err);
+          toast.error(err.message);
+        });
+  };
 
   const loginForm = () =>(
     <form onSubmit={handleSubmit}>
@@ -52,7 +77,7 @@ const Login = ({history}) => {
       <br/>
       <div className='form-group'>
         <input
-          type='text'
+          type='password'
           className='form-control'
           value={password}
           onChange={ (e)=> setPassword(e.target.value)}
@@ -70,12 +95,28 @@ const Login = ({history}) => {
         disabled={!email || password.length <6}>
           Login with Email/Password</Button>
     </form>);
+
+
   return (
     <div className='container p-5'>
       <div className='row'>
         <div className='col-md-6 offset-md-3'>
-          <h4>Login</h4>
-          {loginForm()}
+          {loading ? <h4 className='text-danger'>loading...</h4>:
+          <h4>Login</h4>}
+          {!loading &&
+          <>
+            {loginForm()}
+
+            <Button onClick={googleButton}
+              type="danger"
+              className="mb-3" block
+              shape="round"
+              icon={<GoogleOutlined/>}
+              size="large"
+            >Login with Google</Button>
+            <Link to="/forgot/password" className='float-end text-danger'>
+            Forgot Password
+            </Link></>}
         </div>
       </div>
     </div>
